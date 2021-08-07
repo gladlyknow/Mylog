@@ -1,0 +1,317 @@
+方案一：
+
+##################################################################################################################################################################
+第一步：
+ declare
+ my_task_name varchar2(30);
+ my_sqltext clob;
+ begin
+ my_sqltext:='select /*+ no_index(t1 idx_t1) */ * from t1 where n=1';
+ my_task_name:=dbms_sqltune.create_tuning_task(
+ sql_text=>my_sqltext,
+ user_name=>'WBB',
+ scope=>'COMPREHENSIVE',
+ time_limit=>60,
+ task_name=>'my_sql_tuning_task_2',
+ description=>'Task to tune a query on table t1');
+ end;
+ /
+ 
+第二步：
+ SQL> select task_name,status,execution_start,execution_end from user_advisor_log;
+
+TASK_NAME                                                                                                                        STATUS      EXECUTION EXECUTION
+-------------------------------------------------------------------------------------------------------------------------------- ----------- --------- ---------
+SYS_AUTO_SPM_EVOLVE_TASK                                                                                                         COMPLETED   09-JAN-20 09-JAN-20
+SYS_AI_SPM_EVOLVE_TASK                                                                                                           INITIAL
+SYS_AI_VERIFY_TASK                                                                                                               INITIAL
+SYS_AUTO_INDEX_TASK                                                                                                              INITIAL
+AUTO_STATS_ADVISOR_TASK                                                                                                          COMPLETED   09-JAN-20 09-JAN-20
+INDIVIDUAL_STATS_ADVISOR_TASK                                                                                                    INITIAL
+my_sql_tuning_task_1                                                                                                             INITIAL
+
+第三步：
+SQL> begin
+  dbms_sqltune.execute_tuning_task(task_name=>'my_sql_tuning_task_2');
+   end;
+  /
+
+PL/SQL procedure successfully completed.
+
+SQL> select task_name,status,execution_start,execution_end from user_advisor_log;
+
+TASK_NAME                                                                                                                        STATUS      EXECUTION EXECUTION
+-------------------------------------------------------------------------------------------------------------------------------- ----------- --------- ---------
+SYS_AUTO_SPM_EVOLVE_TASK                                                                                                         COMPLETED   09-JAN-20 09-JAN-20
+SYS_AI_SPM_EVOLVE_TASK                                                                                                           INITIAL
+SYS_AI_VERIFY_TASK                                                                                                               INITIAL
+SYS_AUTO_INDEX_TASK                                                                                                              INITIAL
+AUTO_STATS_ADVISOR_TASK                                                                                                          COMPLETED   09-JAN-20 09-JAN-20
+INDIVIDUAL_STATS_ADVISOR_TASK                                                                                                    INITIAL
+my_sql_tuning_task_1                                                                                                             COMPLETED   09-JAN-20 09-JAN-20
+
+7 rows selected.
+
+第四步：
+
+
+set long 9000
+set longchunksize 1000
+select dbms_sqltune.report_tuning_task('my_sql_tuning_task_2') from dual;
+ 
+ DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+GENERAL INFORMATION SECTION
+-------------------------------------------------------------------------------
+Tuning Task Name   : my_sql_tuning_task_2
+Tuning Task Owner  : SYS
+Workload Type      : Single SQL Statement
+Scope              : COMPREHENSIVE
+Time Limit(seconds): 60
+Completion Status  : COMPLETED
+Started at         : 01/10/2020 08:23:09
+Completed at       : 01/10/2020 08:23:12
+
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+-------------------------------------------------------------------------------
+Schema Name   : WBB
+Container Name: WBB
+SQL ID        : 1kg76709mx29d
+SQL Text      : select /*+ no_index(t1 idx_t1) */ * from t1 where n=1
+
+-------------------------------------------------------------------------------
+FINDINGS SECTION (1 finding)
+-------------------------------------------------------------------------------
+
+1- SQL Profile Finding (see explain plans section below)
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+--------------------------------------------------------
+  A potentially better execution plan was found for this statement.
+
+  Recommendation (estimated benefit: 90.9%)
+  -----------------------------------------
+  - Consider accepting the recommended SQL profile.
+    execute dbms_sqltune.accept_sql_profile(task_name =>
+            'my_sql_tuning_task_2', task_owner => 'SYS', replace => TRUE);
+
+  Validation results
+  ------------------
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+  The SQL profile was tested by executing both its plan and the original plan
+  and measuring their respective execution statistics. A plan may have been
+  only partially executed if the other could be run to completion in less time.
+
+                           Original Plan  With SQL Profile  % Improved
+                           -------------  ----------------  ----------
+  Completion Status:            COMPLETE          COMPLETE
+  Elapsed Time (s):             .001968           .000039      98.01 %
+  CPU Time (s):                 .000327           .000039      88.07 %
+  User I/O Time (s):                  0                 0
+  Buffer Gets:                       22                 2       90.9 %
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+
+  Physical Read Requests:             0                 0
+  Physical Write Requests:            0                 0
+  Physical Read Bytes:                0                 0
+  Physical Write Bytes:               0                 0
+  Rows Processed:                     1                 1
+  Fetches:                            1                 1
+  Executions:                         1                 1
+
+  Notes
+  -----
+  1. Statistics for the original plan were averaged over 10 executions.
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+  2. Statistics for the SQL profile plan were averaged over 10 executions.
+
+-------------------------------------------------------------------------------
+EXPLAIN PLANS SECTION
+-------------------------------------------------------------------------------
+
+1- Original With Adjusted Cost
+------------------------------
+Plan hash value: 3617692013
+
+--------------------------------------------------------------------------
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+| Id  | Operation         | Name | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |     1 |     4 |     7   (0)| 00:00:01 |
+|*  1 |  TABLE ACCESS FULL| T1   |     1 |     4 |     7   (0)| 00:00:01 |
+--------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter("N"=1)
+
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 3 (U - Unused (3))
+---------------------------------------------------------------------------
+
+   0 -  STATEMENT
+         U -  IGNORE_OPTIM_EMBEDDED_HINTS / hint overridden by another in parent query block
+         U -  OPTIMIZER_FEATURES_ENABLE(default) / hint overridden by another in parent query block
+
+   1 -  SEL$1 / T1@SEL$1
+         U -  no_index(t1 idx_t1) / rejected by IGNORE_OPTIM_EMBEDDED_HINTS
+
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+2- Using SQL Profile
+--------------------
+Plan hash value: 1369807930
+
+---------------------------------------------------------------------------
+| Id  | Operation        | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+---------------------------------------------------------------------------
+|   0 | SELECT STATEMENT |        |     1 |     4 |     1   (0)| 00:00:01 |
+|*  1 |  INDEX RANGE SCAN| IDX_T1 |     1 |     4 |     1   (0)| 00:00:01 |
+---------------------------------------------------------------------------
+
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - access("N"=1)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+---------------------------------------------------------------------------
+
+   1 -  SEL$1 / T1@SEL$1
+         U -  no_index(t1 idx_t1) / rejected by IGNORE_OPTIM_EMBEDDED_HINTS
+
+DBMS_SQLTUNE.REPORT_TUNING_TASK('MY_SQL_TUNING_TASK_2')
+-------------------------------------------------------------
+ 
+第五步：
+ execute dbms_sqltune.accept_sql_profile(task_name =>'my_sql_tuning_task_2', task_owner => 'SYS', replace => TRUE);
+
+ 验证即可：
+ 普通用户执行
+ SQL> select /*+ no_index(t1 idx_t1) */ * from t1 where n=1;
+
+         N
+----------
+         1
+
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 1369807930
+
+---------------------------------------------------------------------------
+| Id  | Operation        | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+---------------------------------------------------------------------------
+|   0 | SELECT STATEMENT |        |     1 |     4 |     1   (0)| 00:00:01 |
+|*  1 |  INDEX RANGE SCAN| IDX_T1 |     1 |     4 |     1   (0)| 00:00:01 |
+---------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - access("N"=1)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+---------------------------------------------------------------------------
+
+   1 -  SEL$1 / T1@SEL$1
+         U -  no_index(t1 idx_t1) / rejected by IGNORE_OPTIM_EMBEDDED_HINTS
+
+Note
+-----
+   - SQL profile "SYS_SQLPROF_016f8ce95f930000" used for this statement
+
+
+Statistics
+----------------------------------------------------------
+         36  recursive calls
+          0  db block gets
+         11  consistent gets
+          1  physical reads
+          0  redo size
+        543  bytes sent via SQL*Net to client
+        415  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          1  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+############################################################
+注：按照此情况固定了执行计划，但目标sql一旦发生一点儿变动原有的sql_profile将会失去作用。需要将force_match 设为true
+
+第六步：
+select /*+ no_index(t1 idx_t1) */ * from t1 where n=2;
+        N
+----------
+         2
+
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 1369807930
+
+---------------------------------------------------------------------------
+| Id  | Operation        | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+---------------------------------------------------------------------------
+|   0 | SELECT STATEMENT |        |     1 |     4 |     1   (0)| 00:00:01 |
+|*  1 |  INDEX RANGE SCAN| IDX_T1 |     1 |     4 |     1   (0)| 00:00:01 |
+---------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - access("N"=2)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+---------------------------------------------------------------------------
+
+   1 -  SEL$1 / T1@SEL$1
+         U -  no_index(t1 idx_t1) / rejected by IGNORE_OPTIM_EMBEDDED_HINTS
+
+Note
+-----
+   - SQL profile "SYS_SQLPROF_016f8cf78bf80001" used for this statement
+
+
+Statistics
+----------------------------------------------------------
+          7  recursive calls
+          0  db block gets
+          6  consistent gets
+          1  physical reads
+          0  redo size
+        543  bytes sent via SQL*Net to client
+        415  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          0  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+
+第七步：
+ execute dbms_sqltune.accept_sql_profile(task_name =>'my_sql_tuning_task_2', task_owner => 'SYS', replace => TRUE,force_match=>true);
+ 
+ 
+ 方案二：
+ #####################################################################################################################################################################
+ 
+ SQL> exec dbms_sqltune.drop_sql_profile('SYS_SQLPROF_016f8cf78bf80001');  SYS_SQLPROF_016f8cf78bf80001 可从执行计划中得知。
+
+PL/SQL procedure successfully completed.
+
+SQL>  exec dbms_sqltune.drop_sql_profile('SYS_SQLPROF_016f8ce95f930000');
+
+PL/SQL procedure successfully completed.
+select /*+ no_index(t1 idx_t1) */ * from t1 where n=1；查看执行计划已走全表
+
+1.manual 类型的sql_profile本质上就是一堆hint的组合，这一堆hint的组合实际上来源于执行计划的outline data 部分的hint组合。
